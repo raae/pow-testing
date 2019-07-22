@@ -13,14 +13,17 @@ const PARAMS = {
   },
 }
 
+const BASE_PATH = "test"
+
 const post = async ({ body }) => {
   let { date, entry } = JSON.parse(body)
   entry = JSON.stringify(entry, null, 2)
+
   const params = {
     ...PARAMS,
-    path: date,
+    path: `${BASE_PATH}/${date}`,
     message: "New note",
-    content: Buffer.from(entry).toString("base64"),
+    content: Buffer.from(entry, "utf8").toString("base64"),
   }
 
   try {
@@ -38,6 +41,7 @@ const post = async ({ body }) => {
       body: `${params.repo}/${params.path} added/updated`,
     }
   } catch (error) {
+    console.warn(error)
     return { statusCode: 500, body: error.toString() }
   }
 }
@@ -46,22 +50,29 @@ const get = async () => {
   try {
     const params = {
       ...PARAMS,
-      path: "/",
+      path: `${BASE_PATH}/`,
     }
     const response = await octokit.repos.getContents(params)
     const notePromises = response.data.map(async file => {
-      const { data } = await axios.get(file.download_url)
+      const { data } = await axios.get(file.download_url, {
+        responseEncoding: "base64",
+      })
+
       return {
         date: file.name,
         entry: data,
       }
     })
 
+    const notes = await Promise.all(notePromises)
+    const notesString = JSON.stringify(notes, null, 2)
+
     return {
       statusCode: 200,
-      body: JSON.stringify(await Promise.all(notePromises), null, 2),
+      body: notesString,
     }
   } catch (error) {
+    console.warn(error)
     return { statusCode: 500, body: error.toString() }
   }
 }

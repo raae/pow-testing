@@ -5,24 +5,16 @@ import axios from "axios"
 const ALGORITHM = "AES-GCM"
 const KEY_LENGTH = 256
 
-const encode = text => {
-  return new TextEncoder().encode(text)
+const serializeBuffer = buffer => {
+  return String.fromCharCode(...new Uint8Array(buffer))
 }
 
-const decode = buffer => {
-  return new TextDecoder("utf-8").decode(buffer)
-}
-
-const serialize = buffer => {
-  return new Uint8Array(buffer).toString()
-}
-
-const deserialize = string => {
-  return new Uint8Array(string.split(","))
+const deserializeBuffer = bufferString => {
+  const chars = Array.from(bufferString).map(ch => ch.charCodeAt())
+  return Uint8Array.from(chars).buffer
 }
 
 const generateKey = async () => {
-  console.log("Generate key")
   return await window.crypto.subtle.generateKey(
     { name: ALGORITHM, length: KEY_LENGTH },
     true,
@@ -43,54 +35,70 @@ const initKey = async () => {
 }
 
 const generateNonce = () => {
-  return window.crypto.getRandomValues(new Uint8Array(12))
+  const nonce = window.crypto.getRandomValues(new Uint8Array(12))
+  return serializeBuffer(nonce)
 }
 
 const encrypt = async (text, key, iv) => {
-  const encryptedBuffer = await window.crypto.subtle.encrypt(
-    { name: ALGORITHM, iv: iv },
+  const cypherBuffer = await window.crypto.subtle.encrypt(
+    { name: ALGORITHM, iv: deserializeBuffer(iv) },
     key,
-    encode(text)
+    deserializeBuffer(text)
   )
 
-  return encryptedBuffer
+  console.log("encrypted", {
+    text,
+    encryptedBuffer: cypherBuffer,
+    s: serializeBuffer(cypherBuffer),
+    key,
+    iv,
+  })
+
+  return serializeBuffer(cypherBuffer)
 }
 
-const decrypt = async (cypherBuffer, key, iv) => {
-  const decryptedBuffer = await window.crypto.subtle.decrypt(
-    { name: ALGORITHM, iv: iv },
+const decrypt = async (cypher, key, iv) => {
+  const textBuffer = await window.crypto.subtle.decrypt(
+    { name: ALGORITHM, iv: deserializeBuffer(iv) },
     key,
-    cypherBuffer
+    deserializeBuffer(cypher)
   )
 
-  return decode(decryptedBuffer)
+  return serializeBuffer(new Uint8Array(textBuffer))
 }
 
 const fetchNotes = async key => {
-  const response = await axios.get("/.netlify/functions/hello-world")
-  const notePromises = response.data.map(async note => {
-    note.entry = await decrypt(
-      deserialize(note.entry.cypher),
-      key,
-      deserialize(note.entry.iv)
-    )
-    return note
-  })
-  return await Promise.all(notePromises)
+  try {
+    const response = await axios.get("/.netlify/functions/hello-world")
+    const notePromises = response.data.map(async note => {
+      note.entry = await decrypt(note.entry.cypher, key, note.entry.iv)
+      return note
+    })
+    return await Promise.all(notePromises)
+  } catch (error) {
+    console.warn("Fetch Notes", error)
+    return []
+  }
 }
 
 const saveNote = async ({ date, entry }, key) => {
-  const iv = generateNonce()
+  try {
+    const iv = generateNonce()
 
-  const note = {
-    date: date,
-    entry: {
-      cypher: serialize(await encrypt(entry, key, iv)),
-      iv: serialize(iv),
-    },
+    const note = {
+      date: date,
+      entry: {
+        cypher: await encrypt(entry, key, iv),
+        iv: iv,
+      },
+    }
+
+    await axios.post("/.netlify/functions/hello-world", note)
+    return note
+  } catch (error) {
+    console.warn("Save Note", error)
+    return false
   }
-
-  return await axios.post("/.netlify/functions/hello-world", note)
 }
 
 const IndexPage = () => {
@@ -119,15 +127,12 @@ const IndexPage = () => {
       entry: entryEl.current.value,
     }
 
-    try {
-      setSaving(true)
-      await saveNote(note, key)
-      await setNotes(await fetchNotes(key))
-      setSaving(false)
+    setSaving(true)
+    const saved = await saveNote(note, key)
+    await setNotes(await fetchNotes(key))
+    setSaving(false)
+    if (saved) {
       formEl.current.reset()
-    } catch (error) {
-      setSaving(false)
-      console.error(error)
     }
   }
 
