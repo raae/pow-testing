@@ -12,7 +12,7 @@ const PARAMS = {
   },
 }
 
-const BASE_PATH = "emojii"
+const BASE_PATH = "test1"
 
 const post = async ({ body }) => {
   let { date, entry } = JSON.parse(body)
