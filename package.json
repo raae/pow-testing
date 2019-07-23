@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "license": "MIT",
   "scripts": {
+    "prebuild": "cd functions/notes && npm install",
     "build": "gatsby build",
     "develop": "gatsby develop",
     "format": "prettier --write **/*.{js,jsx}",
@@ -13,7 +14,10 @@
     "test": "echo \"Write tests! -> https://gatsby.dev/unit-testing\""
   },
   "dependencies": {
+    "axios": "^0.19.0",
     "gatsby": "^2.10.4",
+    "http-proxy-middleware": "^0.19.1",
+    "localforage": "^1.7.3",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"
   },
