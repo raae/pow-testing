@@ -69,7 +69,7 @@ const decrypt = async (cypher, key, iv) => {
 
 const fetchNotes = async key => {
   try {
-    const response = await axios.get("/.netlify/functions/hello-world")
+    const response = await axios.get("/.netlify/functions/notes")
     const notePromises = response.data.map(async note => {
       note.entry = await decrypt(note.entry.cypher, key, note.entry.iv)
       return note
@@ -93,7 +93,7 @@ const saveNote = async ({ date, entry }, key) => {
       },
     }
 
-    await axios.post("/.netlify/functions/hello-world", note)
+    await axios.post("/.netlify/functions/notes", note)
     return note
   } catch (error) {
     console.warn("Save Note", error)

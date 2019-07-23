@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "license": "MIT",
   "scripts": {
+    "prebuild": "cd functions/notes && npm install",
     "build": "gatsby build",
     "develop": "gatsby develop",
     "format": "prettier --write **/*.{js,jsx}",

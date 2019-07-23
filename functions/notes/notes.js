@@ -69,6 +69,8 @@ const get = async () => {
     const notes = await Promise.all(notePromises)
     const notesString = JSON.stringify(notes, null, 2)
 
+    console.log(notes)
+
     return {
       statusCode: 200,
       body: notesString,
