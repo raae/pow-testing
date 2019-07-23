@@ -5,13 +5,21 @@ import axios from "axios"
 const ALGORITHM = "AES-GCM"
 const KEY_LENGTH = 256
 
+const encodeText = text => {
+  return new TextEncoder().encode(text)
+}
+
+const decodeText = buffer => {
+  return new TextDecoder().decode(buffer)
+}
+
 const serializeBuffer = buffer => {
-  return String.fromCharCode(...new Uint8Array(buffer))
+  return String.fromCharCode(...new Int8Array(buffer))
 }
 
 const deserializeBuffer = bufferString => {
   const chars = Array.from(bufferString).map(ch => ch.charCodeAt())
-  return Uint8Array.from(chars).buffer
+  return Int8Array.from(chars).buffer
 }
 
 const generateKey = async () => {
@@ -35,7 +43,7 @@ const initKey = async () => {
 }
 
 const generateNonce = () => {
-  const nonce = window.crypto.getRandomValues(new Uint8Array(12))
+  const nonce = window.crypto.getRandomValues(new Int8Array(12))
   return serializeBuffer(nonce)
 }
 
@@ -43,28 +51,24 @@ const encrypt = async (text, key, iv) => {
   const cypherBuffer = await window.crypto.subtle.encrypt(
     { name: ALGORITHM, iv: deserializeBuffer(iv) },
     key,
-    deserializeBuffer(text)
+    encodeText(text)
   )
-
-  console.log("encrypted", {
-    text,
-    encryptedBuffer: cypherBuffer,
-    s: serializeBuffer(cypherBuffer),
-    key,
-    iv,
-  })
 
   return serializeBuffer(cypherBuffer)
 }
 
 const decrypt = async (cypher, key, iv) => {
-  const textBuffer = await window.crypto.subtle.decrypt(
-    { name: ALGORITHM, iv: deserializeBuffer(iv) },
-    key,
-    deserializeBuffer(cypher)
-  )
+  try {
+    const textBuffer = await window.crypto.subtle.decrypt(
+      { name: ALGORITHM, iv: deserializeBuffer(iv) },
+      key,
+      deserializeBuffer(cypher)
+    )
 
-  return serializeBuffer(new Uint8Array(textBuffer))
+    return decodeText(textBuffer)
+  } catch (error) {
+    return "Bad encryption"
+  }
 }
 
 const fetchNotes = async key => {

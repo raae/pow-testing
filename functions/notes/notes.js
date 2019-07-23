@@ -12,7 +12,7 @@ const PARAMS = {
   },
 }
 
-const BASE_PATH = "test"
+const BASE_PATH = "emojii"
 
 const post = async ({ body }) => {
   let { date, entry } = JSON.parse(body)
@@ -67,17 +67,25 @@ const get = async () => {
     })
 
     const notes = await Promise.all(notePromises)
-    const notesString = JSON.stringify(notes, null, 2)
-
-    console.log(notes)
 
     return {
       statusCode: 200,
-      body: notesString,
+      body: JSON.stringify(notes, null, 2),
     }
   } catch (error) {
     console.warn(error)
-    return { statusCode: 500, body: error.toString() }
+
+    if (error.status === 404) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify([]),
+      }
+    } else {
+      return {
+        statusCode: error.status,
+        body: error.toString(),
+      }
+    }
   }
 }
 
