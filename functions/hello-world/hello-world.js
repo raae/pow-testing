@@ -1,4 +1,3 @@
-const axios = require("axios")
 const Octokit = require("@octokit/rest")
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
@@ -48,19 +47,22 @@ const post = async ({ body }) => {
 
 const get = async () => {
   try {
-    const params = {
+    const response = await octokit.repos.getContents({
       ...PARAMS,
       path: `${BASE_PATH}/`,
-    }
-    const response = await octokit.repos.getContents(params)
+    })
+
     const notePromises = response.data.map(async file => {
-      const { data } = await axios.get(file.download_url, {
-        responseEncoding: "base64",
+      const { data } = await octokit.repos.getContents({
+        ...PARAMS,
+        path: file.path,
       })
 
       return {
         date: file.name,
-        entry: data,
+        entry: JSON.parse(
+          Buffer.from(data.content, data.encoding).toString("utf8")
+        ),
       }
     })
 
